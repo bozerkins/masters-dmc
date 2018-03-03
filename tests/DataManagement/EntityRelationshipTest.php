@@ -9,9 +9,6 @@
 namespace DataManagement;
 
 use DataManagement\Model\EntityRelationship\Table;
-use DataManagement\Model\EntityRelationship\TableOperation;
-use DataManagement\Model\EntityRelationship\TableOperationIteration;
-use DataManagement\Model\EntityRelationship\TableOperationOutput;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 
