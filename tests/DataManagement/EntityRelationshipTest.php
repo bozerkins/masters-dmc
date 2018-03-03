@@ -181,6 +181,118 @@ class EntityRelationshipTest extends TestCase
     }
 
     /**
+     * @throws \Exception
+     */
+    public function testTableDelete()
+    {
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        $records = [];
+        $records[] = [
+            'ID' => 1,
+            'Profit' => 15.22,
+            'ProductTitle' => 'TestProduct',
+            'Severity' => 12
+        ];
+        $records[] = [
+            'ID' => 2,
+            'Profit' => 11.2312,
+            'ProductTitle' => 'SomeRealProduct',
+            'Severity' => 2
+        ];
+        $records[] = [
+            'ID' => 3,
+            'Profit' => 105.22,
+            'ProductTitle' => 'NotFake',
+            'Severity' => 6
+        ];
+        $records[] = [
+            'ID' => 4,
+            'Profit' => 205.22,
+            'ProductTitle' => 'DefinitelyNotFake',
+            'Severity' => 23
+        ];
+
+        foreach($records as $record) {
+            $table->create($record);
+        }
+
+        $table->delete(function($record) {
+            if ($record['ID'] === 2 || $record['ID'] === 3) {
+                return Table::OPERATION_DELETE_INCLUDE;
+            }
+        });
+
+        $result = $table->read(function(){
+            return Table::OPERATION_READ_INCLUDE;
+        });
+
+        $this->assertEquals([$records[0], $records[3]], $result);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTableOptimize()
+    {
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        $records = [];
+        $records[] = [
+            'ID' => 1,
+            'Profit' => 15.22,
+            'ProductTitle' => 'TestProduct',
+            'Severity' => 12
+        ];
+        $records[] = [
+            'ID' => 2,
+            'Profit' => 11.2312,
+            'ProductTitle' => 'SomeRealProduct',
+            'Severity' => 2
+        ];
+        $records[] = [
+            'ID' => 3,
+            'Profit' => 105.22,
+            'ProductTitle' => 'NotFake',
+            'Severity' => 6
+        ];
+        $records[] = [
+            'ID' => 4,
+            'Profit' => 205.22,
+            'ProductTitle' => 'DefinitelyNotFake',
+            'Severity' => 23
+        ];
+
+        foreach($records as $record) {
+            $table->create($record);
+        }
+
+        $table->delete(function($record) {
+            if ($record['ID'] === 2 || $record['ID'] === 3) {
+                return Table::OPERATION_DELETE_INCLUDE;
+            }
+        });
+
+        $result = $table->read(function(){
+            return Table::OPERATION_READ_INCLUDE;
+        });
+
+        $this->assertEquals([$records[0], $records[3]], $result);
+
+        clearstatcache();
+        $fsize = filesize($table->storage()->file());
+
+        $table->optimize();
+
+        clearstatcache();
+        $fsize = filesize($table->storage()->file());
+    }
+
+    /**
      * @return array
      */
     private function workingStructure()

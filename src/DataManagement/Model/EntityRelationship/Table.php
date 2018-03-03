@@ -24,6 +24,13 @@ class Table
     const OPERATION_UPDATE_INCLUDE = 1;
     const OPERATION_UPDATE_STOP = 2;
 
+    const OPERATION_DELETE_INCLUDE = 1;
+    const OPERATION_DELETE_STOP = 2;
+    const OPERATION_DELETE_INCLUDE_AND_STOP = 3;
+
+    const INTERNAL_ROW_STATE_ACTIVE = 97; // a
+    const INTERNAL_ROW_STATE_DELETE = 100; // d
+
     /** @var array with columns id, name, type, size */
     private $columns = [];
     /** @var FileStorage  */
@@ -57,6 +64,10 @@ class Table
         $recordForPacking = [];
         $formatCodes = [];
         $recordSize = 0;
+
+        $recordForPacking[] = self::INTERNAL_ROW_STATE_ACTIVE;
+        $formatCodes[] = 'C';
+        $recordSize += 1;
 
         foreach($this->columns as $column) {
             if (array_key_exists($column['name'], $record) !== true) {
@@ -92,10 +103,17 @@ class Table
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
 
         while (feof($this->storage->handle()) === false) {
-            $recordPacked = fread($this->storage->handle(), $size);
-            if ($recordPacked === '') {
+            $systemSize = 1;
+            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
+            if ($systemRecordPacked === '') {
                 continue;
             }
+            $systemRecord = unpack('C1state', $systemRecordPacked);
+            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
+                fseek($this->storage->handle(), $size, SEEK_CUR );
+                continue;
+            }
+            $recordPacked = fread($this->storage->handle(), $size);
             $record = unpack($format, $recordPacked);
             $operation = $search($record);
             if ($operation === self::OPERATION_READ_STOP) {
@@ -121,10 +139,17 @@ class Table
 
         $result = [];
         while (feof($this->storage->handle()) === false) {
-            $recordPacked = fread($this->storage->handle(), $size);
-            if ($recordPacked === '') {
+            $systemSize = 1;
+            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
+            if ($systemRecordPacked === '') {
                 continue;
             }
+            $systemRecord = unpack('C1state', $systemRecordPacked);
+            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
+                fseek($this->storage->handle(), $size, SEEK_CUR );
+                continue;
+            }
+            $recordPacked = fread($this->storage->handle(), $size);
             $record = unpack($format, $recordPacked);
             $operation = $search($record);
             if ($operation === self::OPERATION_READ_INCLUDE) {
@@ -139,6 +164,9 @@ class Table
                 break;
             }
         }
+
+        $this->storage->close();
+
         return $result;
     }
 
@@ -156,10 +184,17 @@ class Table
             return $formatCode . $column['name'];
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
         while (feof($this->storage->handle()) === false) {
-            $recordPacked = fread($this->storage->handle(), $size);
-            if ($recordPacked === '') {
+            $systemSize = 1;
+            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
+            if ($systemRecordPacked === '') {
                 continue;
             }
+            $systemRecord = unpack('C1state', $systemRecordPacked);
+            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
+                fseek($this->storage->handle(), $size, SEEK_CUR );
+                continue;
+            }
+            $recordPacked = fread($this->storage->handle(), $size);
             $record = unpack($format, $recordPacked);
             $operation = $search($record);
             if ($operation === self::OPERATION_UPDATE_INCLUDE) {
@@ -181,6 +216,59 @@ class Table
         $this->storage->close();
     }
 
+    /**
+     * @param \Closure $search
+     * @throws \Exception
+     */
+    public function delete(\Closure $search)
+    {
+        $this->storage->open('c+b');
+        $this->storage->acquire(LOCK_EX);
+        $size = array_sum(array_column($this->columns, 'size'));
+        $format = implode('/', array_map(function($column, $formatCode) {
+            return $formatCode . $column['name'];
+        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+
+        while (feof($this->storage->handle()) === false) {
+            $systemSize = 1;
+            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
+            if ($systemRecordPacked === '') {
+                continue;
+            }
+            $systemRecord = unpack('C1state', $systemRecordPacked);
+            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
+                fseek($this->storage->handle(), $size, SEEK_CUR );
+                continue;
+            }
+            $recordPacked = fread($this->storage->handle(), $size);
+            $record = unpack($format, $recordPacked);
+            $operation = $search($record);
+            if ($operation === self::OPERATION_DELETE_INCLUDE || $operation === self::OPERATION_DELETE_INCLUDE_AND_STOP) {
+                $systemSize = 1;
+                fseek($this->storage->handle(), -$systemSize-$size, SEEK_CUR );
+                $columnFormat = 'C';
+                $columnPacked = pack($columnFormat, self::INTERNAL_ROW_STATE_DELETE);
+                fwrite($this->storage->handle(), $columnPacked, $systemSize);
+                fseek($this->storage->handle(), $size, SEEK_CUR );
+                if ($operation === self::OPERATION_DELETE_INCLUDE) {
+                    continue;
+                }
+                if ($operation === self::OPERATION_DELETE_INCLUDE_AND_STOP) {
+                    break;
+                }
+            }
+            if ($operation === self::OPERATION_DELETE_STOP) {
+                break;
+            }
+        }
+        $this->storage->close();
+    }
+
+    /**
+     * @param string $name
+     * @return int
+     * @throws \Exception
+     */
     private function getSizeUntilColumnByName(string $name)
     {
         $size = 0;
@@ -193,6 +281,11 @@ class Table
         throw new \Exception(sprintf('no column by the name %s found', $name));
     }
 
+    /**
+     * @param string $name
+     * @return mixed
+     * @throws \Exception
+     */
     private function getColumnByName(string $name)
     {
         foreach($this->columns as $column) {
