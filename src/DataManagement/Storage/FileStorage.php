@@ -12,89 +12,97 @@ namespace DataManagement\Storage;
 class FileStorage
 {
     /** @var string */
-    private $folder;
-
-    const OPEN_TYPE_SHARED = 1;
-    const OPEN_TYPE_EXCLUSIVE = 2;
+    private $file;
+    /** @var resource */
+    private $handle;
 
     /**
      * FileStorage constructor.
-     * @param string $folder
-     */
-    public function __construct(string $folder)
-    {
-        $this->folder = rtrim($folder, '/') . '/';
-    }
-
-    /**
-     * @param $file
-     * @return bool|resource
-     * @throws \Exception
-     */
-    public function openShared($file)
-    {
-        $handle = $this->open($file, 'r');
-        $this->acquire($handle, LOCK_SH);
-        return $handle;
-    }
-
-    /**
      * @param string $file
-     * @return bool|resource
-     * @throws \Exception
      */
-    public function openExclusive(string $file)
+    public function __construct(string $file)
     {
-        $handle = $this->open($file, 'r');
-        $this->acquire($handle, LOCK_EX);
-        return $handle;
+        $this->file = $file;
     }
 
     /**
-     * @param $handle
      * @throws \Exception
      */
-    public function close($handle)
+    public function create()
     {
-        if (false === fclose($handle)) {
+        if (false === file_exists($this->file)) {
+            if (false === touch($this->file)) {
+                throw new \Exception('failed to create the file');
+            }
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function createAndFlush()
+    {
+        if (false === file_exists($this->file)) {
+            if (false === touch($this->file)) {
+                throw new \Exception('failed to create the file');
+            }
+        } else {
+            $handler = fopen($this->file, 'w');
+            fclose($handler);
+        }
+    }
+
+    public function handle()
+    {
+        return $this->handle;
+    }
+
+    public function file()
+    {
+        return $this->file;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function close()
+    {
+        if (false === fclose($this->handle)) {
             throw new \Exception('fail to close');
         }
     }
 
     /**
-     * @param string $file
      * @param $mode
      * @return bool|resource
      * @throws \Exception
      */
-    private function open(string $file, $mode)
+    public function open($mode)
     {
-        $handle = fopen($this->folder . $file, $mode);
+        $handle = fopen($this->file, $mode);
         if (false === $handle) {
             throw new \Exception('fail to open');
         }
-        return $handle;
+        $this->handle = $handle;
     }
 
     /**
-     * @param $handle
      * @param $operation
      * @throws \Exception
      */
-    public function acquire($handle, $operation)
+    public function acquire($operation)
     {
-        if (false === flock($handle, $operation)) {
+        if (false === flock($this->handle, $operation)) {
             throw new \Exception('fail to lock');
         }
     }
 
     /**
-     * @param $handle
      * @throws \Exception
      */
-    public function release($handle)
+    public function release()
     {
-        if (flock($handle, LOCK_UN) === false) {
+        if (flock($this->handle, LOCK_UN) === false) {
             throw new \Exception('fail to unlock');
         }
     }
