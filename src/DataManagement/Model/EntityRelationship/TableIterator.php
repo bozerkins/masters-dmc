@@ -54,6 +54,11 @@ class TableIterator
         fseek($this->table->storage()->handle(), ($positionOfRecord - 1) * ($this->rowSize + $this->systemRowSize), SEEK_SET);
     }
 
+    public function position()
+    {
+        return floor(ftell($this->table->storage()->handle()) / ($this->systemRowSize + $this->rowSize));
+    }
+
     /**
      * @param int $status
      * @return string
