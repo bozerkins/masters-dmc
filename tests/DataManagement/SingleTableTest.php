@@ -12,7 +12,7 @@ use DataManagement\Model\EntityRelationship\Table;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 
-class EntityRelationshipTest extends TestCase
+class SingleTableTest extends TestCase
 {
     /**
      * @throws \Exception
