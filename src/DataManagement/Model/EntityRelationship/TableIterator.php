@@ -51,7 +51,12 @@ class TableIterator
 
     public function jump(int $positionOfRecord)
     {
-        fseek($this->table->storage()->handle(), ($positionOfRecord - 1) * ($this->rowSize + $this->systemRowSize), SEEK_SET);
+        fseek($this->table->storage()->handle(), $positionOfRecord * ($this->rowSize + $this->systemRowSize), SEEK_SET);
+    }
+
+    public function end()
+    {
+        fseek($this->table->storage()->handle(), 0, SEEK_END);
     }
 
     public function position()

@@ -342,7 +342,7 @@ class SingleTableTest extends TestCase
 
         $iterator->table()->reserve(Table::RESERVE_WRITE);
 
-        $iterator->jump(1);
+        $iterator->jump(0);
 
         $records = [];
         foreach(range(1,20) as $index) {
@@ -361,7 +361,7 @@ class SingleTableTest extends TestCase
 
         $iterator->table()->reserve(Table::RESERVE_READ);
 
-        $iterator->jump(10);
+        $iterator->jump(9);
         $record = $iterator->read();
         $this->assertEquals($records[9], $record);
 
@@ -369,23 +369,23 @@ class SingleTableTest extends TestCase
 
         $iterator->table()->reserve(Table::RESERVE_READ_AND_WRITE);
 
-        $iterator->jump(10);
+        $iterator->jump(9);
         $iterator->update(
             [
                 'ID' => 30,
                 'ProductTitle' => 'elk'
             ]
         );
-        $iterator->jump(10);
+        $iterator->jump(9);
         $record = $iterator->read();
         $initialRecord = $records[9];
         $initialRecord['ID'] = 30;
         $initialRecord['ProductTitle'] = 'elk';
         $this->assertEquals($initialRecord, $record);
 
-        $iterator->jump(11);
+        $iterator->jump(10);
         $iterator->delete();
-        $iterator->jump(11);
+        $iterator->jump(10);
         $this->assertEquals(null, $iterator->read());
 
         $iterator->table()->release();
