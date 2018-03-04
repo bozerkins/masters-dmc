@@ -93,7 +93,7 @@ class Table
             if ($record === null) {
                 continue;
             }
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_READ_STOP) {
                 break;
             }
