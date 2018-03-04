@@ -13,9 +13,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class Table
 {
-    const COLUMN_TYPE_INTEGER   = 1;
-    const COLUMN_TYPE_FLOAT     = 2;
-    const COLUMN_TYPE_STRING    = 3;
 
     const OPERATION_READ_INCLUDE            = 1;
     const OPERATION_READ_STOP               = 2;
@@ -27,9 +24,6 @@ class Table
     const OPERATION_DELETE_INCLUDE = 1;
     const OPERATION_DELETE_STOP = 2;
     const OPERATION_DELETE_INCLUDE_AND_STOP = 3;
-
-    const INTERNAL_ROW_STATE_ACTIVE = 97; // a
-    const INTERNAL_ROW_STATE_DELETE = 100; // d
 
     const RESERVE_READ = 1;
     const RESERVE_WRITE = 2;
@@ -60,34 +54,24 @@ class Table
     }
 
     /**
+     * @return TableIterator
+     */
+    public function newIterator()
+    {
+        return new TableIterator($this);
+    }
+
+    /**
      * @param array $record
      * @throws \Exception
      */
     public function create(array $record)
     {
-        $recordForPacking = [];
-        $formatCodes = [];
-        $recordSize = 0;
-
-        $recordForPacking[] = self::INTERNAL_ROW_STATE_ACTIVE;
-        $formatCodes[] = 'C';
-        $recordSize += 1;
-
-        foreach($this->columns as $column) {
-            if (array_key_exists($column['name'], $record) !== true) {
-                throw new \Exception(sprintf('missing column %s in the record', $column['name']));
-            }
-            $recordForPacking[] = $record[$column['name']];
-            $formatCodes[] = $this->getFormatCode($column);
-            $recordSize += $column['size'];
-        }
-
-        $recordPacked = pack(implode('', $formatCodes), ...$recordForPacking);
-
         $canRelease = $this->tryReserve(self::RESERVE_WRITE);
 
-        fseek($this->storage->handle(), 0, SEEK_END);
-        fwrite($this->storage->handle(), $recordPacked, $recordSize);
+        $iterator = $this->newIterator();
+        $iterator->end();
+        $iterator->create($record);
 
         $canRelease && $this->release();
     }
@@ -99,31 +83,22 @@ class Table
      */
     public function iterate(\Closure $search)
     {
-        $size = array_sum(array_column($this->columns, 'size'));
-        $format = implode('/', array_map(function($column, $formatCode) {
-            return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
-
         $canRelease = $this->tryReserve(self::RESERVE_READ);
-        fseek($this->storage->handle(), 0, SEEK_SET);
-        while (feof($this->storage->handle()) === false) {
-            $systemSize = 1;
-            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
-            if ($systemRecordPacked === '') {
+
+        $iterator = $this->newIterator();
+        $iterator->jump(0);
+
+        while ($iterator->endOfTable() === false) {
+            $record = $iterator->read();
+            if ($record === null) {
                 continue;
             }
-            $systemRecord = unpack('C1state', $systemRecordPacked);
-            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
-                fseek($this->storage->handle(), $size, SEEK_CUR );
-                continue;
-            }
-            $recordPacked = fread($this->storage->handle(), $size);
-            $record = unpack($format, $recordPacked);
             $operation = $search($record);
             if ($operation === self::OPERATION_READ_STOP) {
                 break;
             }
         }
+
         $canRelease && $this->release();
     }
 
@@ -134,28 +109,19 @@ class Table
      */
     public function read(\Closure $search) : array
     {
-        $size = array_sum(array_column($this->columns, 'size'));
-        $format = implode('/', array_map(function($column, $formatCode) {
-            return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+        $canRelease = $this->tryReserve(self::RESERVE_READ);
+
+        $iterator = $this->newIterator();
+        $iterator->jump(0);
 
         $result = [];
-        $canRelease = $this->tryReserve(self::RESERVE_READ);
-        fseek($this->storage->handle(), 0, SEEK_SET);
-        while (feof($this->storage->handle()) === false) {
-            $systemSize = 1;
-            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
-            if ($systemRecordPacked === '') {
+
+        while ($iterator->endOfTable() === false) {
+            $record = $iterator->read();
+            if ($record === null) {
                 continue;
             }
-            $systemRecord = unpack('C1state', $systemRecordPacked);
-            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
-                fseek($this->storage->handle(), $size, SEEK_CUR );
-                continue;
-            }
-            $recordPacked = fread($this->storage->handle(), $size);
-            $record = unpack($format, $recordPacked);
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_READ_INCLUDE) {
                 $result[] = $record;
                 continue;
@@ -168,6 +134,7 @@ class Table
                 break;
             }
         }
+
         $canRelease && $this->release();
 
         return $result;
@@ -180,43 +147,28 @@ class Table
      */
     public function update(\Closure $search, \Closure $change)
     {
-        $size = array_sum(array_column($this->columns, 'size'));
-        $format = implode('/', array_map(function($column, $formatCode) {
-            return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
-
         $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
-        fseek($this->storage->handle(), 0, SEEK_SET);
-        while (feof($this->storage->handle()) === false) {
-            $systemSize = 1;
-            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
-            if ($systemRecordPacked === '') {
+
+        $iterator = $this->newIterator();
+        $iterator->jump(0);
+
+        while ($iterator->endOfTable() === false) {
+            $record = $iterator->read();
+            if ($record === null) {
                 continue;
             }
-            $systemRecord = unpack('C1state', $systemRecordPacked);
-            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
-                fseek($this->storage->handle(), $size, SEEK_CUR );
-                continue;
-            }
-            $recordPacked = fread($this->storage->handle(), $size);
-            $record = unpack($format, $recordPacked);
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_UPDATE_INCLUDE) {
-                $updates = $change($record) ?? [];
-                foreach($updates as $name => $update) {
-                    $column = $this->getColumnByName($name);
-                    $sizeUntilColumn = $this->getSizeUntilColumnByName($name);
-                    fseek($this->storage->handle(), -$size+$sizeUntilColumn, SEEK_CUR );
-                    $columnFormat = $this->getFormatCode($column);
-                    $columnPacked = pack($columnFormat, $update);
-                    fwrite($this->storage->handle(), $columnPacked, $column['size']);
-                    fseek($this->storage->handle(), -$sizeUntilColumn-$column['size']+$size, SEEK_CUR );
-                }
+                $updates = $change($record, $iterator) ?? [];
+                $iterator->rewind(1);
+                $iterator->update($updates);
+                continue;
             }
             if ($operation === self::OPERATION_UPDATE_STOP) {
                 break;
             }
         }
+
         $canRelease && $this->release();
     }
 
@@ -226,45 +178,33 @@ class Table
      */
     public function delete(\Closure $search)
     {
-        $size = array_sum(array_column($this->columns, 'size'));
-        $format = implode('/', array_map(function($column, $formatCode) {
-            return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
-
         $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
-        fseek($this->storage->handle(), 0, SEEK_SET);
-        while (feof($this->storage->handle()) === false) {
-            $systemSize = 1;
-            $systemRecordPacked = fread($this->storage->handle(), $systemSize);
-            if ($systemRecordPacked === '') {
+
+        $iterator = $this->newIterator();
+        $iterator->jump(0);
+
+        while ($iterator->endOfTable() === false) {
+            $record = $iterator->read();
+            if ($record === null) {
                 continue;
             }
-            $systemRecord = unpack('C1state', $systemRecordPacked);
-            if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
-                fseek($this->storage->handle(), $size, SEEK_CUR );
+
+            $operation = $search($record, $iterator);
+            if ($operation === self::OPERATION_DELETE_INCLUDE) {
+                $iterator->rewind(1);
+                $iterator->delete();
                 continue;
             }
-            $recordPacked = fread($this->storage->handle(), $size);
-            $record = unpack($format, $recordPacked);
-            $operation = $search($record);
-            if ($operation === self::OPERATION_DELETE_INCLUDE || $operation === self::OPERATION_DELETE_INCLUDE_AND_STOP) {
-                $systemSize = 1;
-                fseek($this->storage->handle(), -$systemSize-$size, SEEK_CUR );
-                $columnFormat = 'C';
-                $columnPacked = pack($columnFormat, self::INTERNAL_ROW_STATE_DELETE);
-                fwrite($this->storage->handle(), $columnPacked, $systemSize);
-                fseek($this->storage->handle(), $size, SEEK_CUR );
-                if ($operation === self::OPERATION_DELETE_INCLUDE) {
-                    continue;
-                }
-                if ($operation === self::OPERATION_DELETE_INCLUDE_AND_STOP) {
-                    break;
-                }
+            if ($operation === self::OPERATION_DELETE_INCLUDE_AND_STOP) {
+                $iterator->rewind(1);
+                $iterator->delete();
+                break;
             }
             if ($operation === self::OPERATION_DELETE_STOP) {
                 break;
             }
         }
+
         $canRelease && $this->release();
     }
 
@@ -333,38 +273,6 @@ class Table
     }
 
     /**
-     * @param string $name
-     * @return int
-     * @throws \Exception
-     */
-    private function getSizeUntilColumnByName(string $name)
-    {
-        $size = 0;
-        foreach($this->columns as $column) {
-            if ($column['name'] === $name) {
-                return $size;
-            }
-            $size += $column['size'];
-        }
-        throw new \Exception(sprintf('no column by the name %s found', $name));
-    }
-
-    /**
-     * @param string $name
-     * @return mixed
-     * @throws \Exception
-     */
-    private function getColumnByName(string $name)
-    {
-        foreach($this->columns as $column) {
-            if ($column['name'] === $name) {
-                return $column;
-            }
-        }
-        throw new \Exception(sprintf('no column by the name %s found', $name));
-    }
-
-    /**
      * Add new column to the table structure. Returns the ID of the column added in the structure.
      *
      * @param string $name
@@ -375,10 +283,10 @@ class Table
      */
     public function addColumn(string $name, int $type, int $size = null) : int
     {
-        $this->validateType($type);
+        TableHelper::validateType($type);
 
         if ($size === null) {
-            $size = $this->getSizeByType($type);
+            $size = TableHelper::getSizeByType($type);
         }
 
         $column = [];
@@ -421,56 +329,6 @@ class Table
 
         foreach($structure as $item) {
             $this->addColumn($item['name'], $item['type'], $item['size']);
-        }
-    }
-
-    /**
-     * @param array $column
-     * @return string
-     * @throws \Exception
-     */
-    private function getFormatCode(array $column)
-    {
-        $type = $column['type'];
-        if ($type === self::COLUMN_TYPE_INTEGER) {
-            return 'i';
-        }
-        if ($type === self::COLUMN_TYPE_FLOAT) {
-            return 'd';
-        }
-        if ($type === self::COLUMN_TYPE_STRING) {
-            return 'Z' . (string) $column['size'];
-        }
-        throw new \Exception('undefined type for format code definition');
-    }
-
-    /**
-     * @param int $type
-     * @return int
-     * @throws \Exception
-     */
-    private function getSizeByType(int $type)
-    {
-        if ($type == self::COLUMN_TYPE_INTEGER) {
-            return 4;
-        }
-        if ($type === self::COLUMN_TYPE_FLOAT) {
-            return 8;
-        }
-        if ($type === self::COLUMN_TYPE_STRING) {
-            return 255;
-        }
-        throw new \Exception('type unknown. could not define the default size');
-    }
-
-    /**
-     * @param int $type
-     * @throws \Exception
-     */
-    private function validateType(int $type)
-    {
-        if ($type > 3 || $type < 1) {
-            throw new \Exception('invalid type received');
         }
     }
 }

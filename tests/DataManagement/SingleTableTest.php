@@ -9,10 +9,13 @@
 namespace DataManagement;
 
 use DataManagement\Model\EntityRelationship\Table;
+use DataManagement\Model\EntityRelationship\TableHelper;
+use DataManagement\Model\EntityRelationship\TableIteration;
+use DataManagement\Model\EntityRelationship\TableIterator;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 
-class EntityRelationshipTest extends TestCase
+class SingleTableTest extends TestCase
 {
     /**
      * @throws \Exception
@@ -20,10 +23,10 @@ class EntityRelationshipTest extends TestCase
     public function testTableStructure()
     {
         $table = new Table(new FileStorage(':memory'));
-        $table->addColumn('ID', Table::COLUMN_TYPE_INTEGER);
-        $table->addColumn('Profit', Table::COLUMN_TYPE_FLOAT);
-        $table->addColumn('ProductTitle', Table::COLUMN_TYPE_STRING);
-        $table->addColumn('Severity', Table::COLUMN_TYPE_INTEGER);
+        $table->addColumn('ID', TableHelper::COLUMN_TYPE_INTEGER);
+        $table->addColumn('Profit', TableHelper::COLUMN_TYPE_FLOAT);
+        $table->addColumn('ProductTitle', TableHelper::COLUMN_TYPE_STRING);
+        $table->addColumn('Severity', TableHelper::COLUMN_TYPE_INTEGER);
         $structure = $table->structure();
         $this->assertEquals($structure, $this->workingStructure());
 
@@ -310,8 +313,8 @@ class EntityRelationshipTest extends TestCase
             $table->create($record);
         }
 
-        $table->delete(function($record) {
-            if ($record['ID'] === 2 || $record['ID'] === 3) {
+        $table->delete(function($record, TableIterator $iterator) {
+            if ($record['ID'] === 2 || ($iterator->position() - 1) === 2) {
                 return Table::OPERATION_DELETE_INCLUDE;
             }
         });
@@ -323,8 +326,70 @@ class EntityRelationshipTest extends TestCase
         $table->release();
 
         $this->assertEquals([$records[0], $records[3]], $result);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testControllableIteration()
+    {
+
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
 
 
+        $iterator = $table->newIterator();
+
+        $iterator->table()->reserve(Table::RESERVE_WRITE);
+
+        $iterator->jump(0);
+
+        $records = [];
+        foreach(range(1,20) as $index) {
+            $records[] = $record = [
+                'ID' => $index,
+                'Profit' => rand(200,10000) / 100,
+                'ProductTitle' => 'Title' . base64_encode(random_bytes(rand(5,10))) . $index . 'End',
+                'Severity' => rand(1,20)
+            ];
+            $iterator->create(
+                $record
+            );
+        }
+
+        $iterator->table()->release();
+
+        $iterator->table()->reserve(Table::RESERVE_READ);
+
+        $iterator->jump(9);
+        $record = $iterator->read();
+        $this->assertEquals($records[9], $record);
+
+        $iterator->table()->release();
+
+        $iterator->table()->reserve(Table::RESERVE_READ_AND_WRITE);
+
+        $iterator->jump(9);
+        $iterator->update(
+            [
+                'ID' => 30,
+                'ProductTitle' => 'elk'
+            ]
+        );
+        $iterator->jump(9);
+        $record = $iterator->read();
+        $initialRecord = $records[9];
+        $initialRecord['ID'] = 30;
+        $initialRecord['ProductTitle'] = 'elk';
+        $this->assertEquals($initialRecord, $record);
+
+        $iterator->jump(10);
+        $iterator->delete();
+        $iterator->jump(10);
+        $this->assertEquals(null, $iterator->read());
+
+        $iterator->table()->release();
     }
 
     /**
