@@ -13,9 +13,6 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class Table
 {
-    const COLUMN_TYPE_INTEGER   = 1;
-    const COLUMN_TYPE_FLOAT     = 2;
-    const COLUMN_TYPE_STRING    = 3;
 
     const OPERATION_READ_INCLUDE            = 1;
     const OPERATION_READ_STOP               = 2;
@@ -78,7 +75,7 @@ class Table
                 throw new \Exception(sprintf('missing column %s in the record', $column['name']));
             }
             $recordForPacking[] = $record[$column['name']];
-            $formatCodes[] = $this->getFormatCode($column);
+            $formatCodes[] = TableHelper::getFormatCode($column);
             $recordSize += $column['size'];
         }
 
@@ -102,7 +99,7 @@ class Table
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+        }, $this->columns, array_map([TableHelper::class, 'getFormatCode'], $this->columns)));
 
         $canRelease = $this->tryReserve(self::RESERVE_READ);
         fseek($this->storage->handle(), 0, SEEK_SET);
@@ -127,6 +124,11 @@ class Table
         $canRelease && $this->release();
     }
 
+    public function newIterator()
+    {
+        return new TableIterator($this);
+    }
+
     /**
      * @param \Closure $search
      * @throws \Exception
@@ -137,7 +139,7 @@ class Table
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+        }, $this->columns, array_map([TableHelper::class, 'getFormatCode'], $this->columns)));
 
         $result = [];
         $canRelease = $this->tryReserve(self::RESERVE_READ);
@@ -183,7 +185,7 @@ class Table
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+        }, $this->columns, array_map([TableHelper::class, 'getFormatCode'], $this->columns)));
 
         $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
         fseek($this->storage->handle(), 0, SEEK_SET);
@@ -207,7 +209,7 @@ class Table
                     $column = $this->getColumnByName($name);
                     $sizeUntilColumn = $this->getSizeUntilColumnByName($name);
                     fseek($this->storage->handle(), -$size+$sizeUntilColumn, SEEK_CUR );
-                    $columnFormat = $this->getFormatCode($column);
+                    $columnFormat = TableHelper::getFormatCode($column);
                     $columnPacked = pack($columnFormat, $update);
                     fwrite($this->storage->handle(), $columnPacked, $column['size']);
                     fseek($this->storage->handle(), -$sizeUntilColumn-$column['size']+$size, SEEK_CUR );
@@ -229,7 +231,7 @@ class Table
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
-        }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+        }, $this->columns, array_map([TableHelper::class, 'getFormatCode'], $this->columns)));
 
         $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
         fseek($this->storage->handle(), 0, SEEK_SET);
@@ -375,10 +377,10 @@ class Table
      */
     public function addColumn(string $name, int $type, int $size = null) : int
     {
-        $this->validateType($type);
+        TableHelper::validateType($type);
 
         if ($size === null) {
-            $size = $this->getSizeByType($type);
+            $size = TableHelper::getSizeByType($type);
         }
 
         $column = [];
@@ -421,56 +423,6 @@ class Table
 
         foreach($structure as $item) {
             $this->addColumn($item['name'], $item['type'], $item['size']);
-        }
-    }
-
-    /**
-     * @param array $column
-     * @return string
-     * @throws \Exception
-     */
-    private function getFormatCode(array $column)
-    {
-        $type = $column['type'];
-        if ($type === self::COLUMN_TYPE_INTEGER) {
-            return 'i';
-        }
-        if ($type === self::COLUMN_TYPE_FLOAT) {
-            return 'd';
-        }
-        if ($type === self::COLUMN_TYPE_STRING) {
-            return 'Z' . (string) $column['size'];
-        }
-        throw new \Exception('undefined type for format code definition');
-    }
-
-    /**
-     * @param int $type
-     * @return int
-     * @throws \Exception
-     */
-    private function getSizeByType(int $type)
-    {
-        if ($type == self::COLUMN_TYPE_INTEGER) {
-            return 4;
-        }
-        if ($type === self::COLUMN_TYPE_FLOAT) {
-            return 8;
-        }
-        if ($type === self::COLUMN_TYPE_STRING) {
-            return 255;
-        }
-        throw new \Exception('type unknown. could not define the default size');
-    }
-
-    /**
-     * @param int $type
-     * @throws \Exception
-     */
-    private function validateType(int $type)
-    {
-        if ($type > 3 || $type < 1) {
-            throw new \Exception('invalid type received');
         }
     }
 }

@@ -9,6 +9,8 @@
 namespace DataManagement;
 
 use DataManagement\Model\EntityRelationship\Table;
+use DataManagement\Model\EntityRelationship\TableHelper;
+use DataManagement\Model\EntityRelationship\TableIteration;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 
@@ -20,10 +22,10 @@ class SingleTableTest extends TestCase
     public function testTableStructure()
     {
         $table = new Table(new FileStorage(':memory'));
-        $table->addColumn('ID', Table::COLUMN_TYPE_INTEGER);
-        $table->addColumn('Profit', Table::COLUMN_TYPE_FLOAT);
-        $table->addColumn('ProductTitle', Table::COLUMN_TYPE_STRING);
-        $table->addColumn('Severity', Table::COLUMN_TYPE_INTEGER);
+        $table->addColumn('ID', TableHelper::COLUMN_TYPE_INTEGER);
+        $table->addColumn('Profit', TableHelper::COLUMN_TYPE_FLOAT);
+        $table->addColumn('ProductTitle', TableHelper::COLUMN_TYPE_STRING);
+        $table->addColumn('Severity', TableHelper::COLUMN_TYPE_INTEGER);
         $structure = $table->structure();
         $this->assertEquals($structure, $this->workingStructure());
 
@@ -323,8 +325,45 @@ class SingleTableTest extends TestCase
         $table->release();
 
         $this->assertEquals([$records[0], $records[3]], $result);
+    }
 
+    /**
+     * @throws \Exception
+     */
+    public function testControllableIteration()
+    {
 
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        foreach(range(1,20) as $index) {
+            $table->create(
+                [
+                    'ID' => $index,
+                    'Profit' => rand(200,10000) / 100,
+                    'ProductTitle' => 'Title' . base64_encode(random_bytes(rand(5,10))) . $index . 'End',
+                    'Severity' => rand(1,20)
+                ]
+            );
+        }
+
+        $table->reserve(Table::RESERVE_READ);
+
+        $iterator = $table->newIterator();
+        $record = null;
+        while($iterator->endOfTable() !== true) {
+            $record = $iterator->next();
+            if ($record === null) {
+                break;
+            }
+//            dump($record);
+        }
+
+        $iterator->jump(10);
+        dump($iterator->next());
+
+        $table->release();
     }
 
     /**
