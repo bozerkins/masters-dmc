@@ -25,9 +25,6 @@ class Table
     const OPERATION_DELETE_STOP = 2;
     const OPERATION_DELETE_INCLUDE_AND_STOP = 3;
 
-    const INTERNAL_ROW_STATE_ACTIVE = 97; // a
-    const INTERNAL_ROW_STATE_DELETE = 100; // d
-
     const RESERVE_READ = 1;
     const RESERVE_WRITE = 2;
     const RESERVE_READ_AND_WRITE = 3;
@@ -86,11 +83,6 @@ class Table
      */
     public function iterate(\Closure $search)
     {
-        $size = array_sum(array_column($this->columns, 'size'));
-        $format = implode('/', array_map(function($column, $formatCode) {
-            return $formatCode . $column['name'];
-        }, $this->columns, array_map([TableHelper::class, 'getFormatCode'], $this->columns)));
-
         $canRelease = $this->tryReserve(self::RESERVE_READ);
 
         $iterator = $this->newIterator();

@@ -13,6 +13,9 @@ use DataManagement\Storage\FileStorage;
 
 class TableIterator
 {
+    const INTERNAL_ROW_STATE_ACTIVE = 97; // a
+    const INTERNAL_ROW_STATE_DELETE = 100; // d
+
     private $table;
     private $rowSize;
     private $rowFormat;
@@ -118,7 +121,7 @@ class TableIterator
     public function create(array $record)
     {
         $binaryRecord = '';
-        $binaryRecord .= $this->packSystemRecord(Table::INTERNAL_ROW_STATE_ACTIVE);
+        $binaryRecord .= $this->packSystemRecord(self::INTERNAL_ROW_STATE_ACTIVE);
         $binaryRecord .= $this->packRecord($record);
         fwrite($this->table->storage()->handle(), $binaryRecord, $this->systemRowSize + $this->rowSize);
     }
@@ -134,7 +137,7 @@ class TableIterator
             return null;
         }
         $systemRecord = $this->unpackSystemRecord($binaryRecord);
-        if ($systemRecord['state'] === Table::INTERNAL_ROW_STATE_DELETE) {
+        if ($systemRecord['state'] === self::INTERNAL_ROW_STATE_DELETE) {
             return null;
         }
         return $this->unpackRecord($binaryRecord);
@@ -173,7 +176,7 @@ class TableIterator
 
     public function delete()
     {
-        $binarySystemRecord = $this->packSystemRecord(Table::INTERNAL_ROW_STATE_DELETE);
+        $binarySystemRecord = $this->packSystemRecord(self::INTERNAL_ROW_STATE_DELETE);
         // write delete status
         fwrite($this->table->storage()->handle(), $binarySystemRecord, $this->systemRowSize);
         // return to the beginning of the row
