@@ -376,13 +376,16 @@ class SingleTableTest extends TestCase
                 'ProductTitle' => 'elk'
             ]
         );
+        $iterator->jump(10);
         $record = $iterator->read();
         $initialRecord = $records[9];
         $initialRecord['ID'] = 30;
         $initialRecord['ProductTitle'] = 'elk';
         $this->assertEquals($initialRecord, $record);
 
+        $iterator->jump(11);
         $iterator->delete();
+        $iterator->jump(11);
         $this->assertEquals(null, $iterator->read());
 
         $iterator->table()->release();

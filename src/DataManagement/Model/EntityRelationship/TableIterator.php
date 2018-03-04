@@ -144,16 +144,20 @@ class TableIterator
             fseek($this->table->storage()->handle(), +$sizeUntilColumn, SEEK_CUR );
             // update the column
             fwrite($this->table->storage()->handle(), $columnPacked, $column['size']);
-            // jump to the next row
+            // jump to the beginning of the row
             fseek($this->table->storage()->handle(), -$sizeUntilColumn-$column['size'], SEEK_CUR );
         }
+        // jump to the end of the row
+        fseek($this->table->storage()->handle(), +$this->systemRowSize+$this->rowSize, SEEK_CUR );
     }
 
     public function delete()
     {
         $binarySystemRecord = $this->packSystemRecord(Table::INTERNAL_ROW_STATE_DELETE);
+        // write delete status
         fwrite($this->table->storage()->handle(), $binarySystemRecord, $this->systemRowSize);
-        fseek($this->table->storage()->handle(), -$this->systemRowSize, SEEK_CUR );
+        // return to the beginning of the row
+        fseek($this->table->storage()->handle(), +$this->rowSize, SEEK_CUR );
     }
 
     /**
