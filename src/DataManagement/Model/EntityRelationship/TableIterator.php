@@ -136,19 +136,29 @@ class TableIterator
      */
     public function update(array $updates)
     {
-        foreach($updates as $name => $update) {
-            $column = TableHelper::getColumnByName($this->table, $name);
-            $sizeUntilColumn = TableHelper::getSizeUntilColumnByName($this->table, $name) + $this->systemRowSize;
-            $columnPacked = pack(TableHelper::getFormatCode($column), $update);
+        // initialize jump size
+        $sizeToJump = 0;
+        // skip system row
+        fseek($this->table->storage()->handle(), +$this->systemRowSize, SEEK_CUR );
+        // go through the structure
+        foreach($this->table->structure() as $column) {
+            if (array_key_exists($column['name'], $updates) === false) {
+                $sizeToJump += $column['size'];
+                continue;
+            }
+            $columnPacked = pack(TableHelper::getFormatCode($column), $updates[$column['name']]);
             // jump to column beginning
-            fseek($this->table->storage()->handle(), +$sizeUntilColumn, SEEK_CUR );
+            fseek($this->table->storage()->handle(), $sizeToJump, SEEK_CUR );
             // update the column
             fwrite($this->table->storage()->handle(), $columnPacked, $column['size']);
-            // jump to the beginning of the row
-            fseek($this->table->storage()->handle(), -$sizeUntilColumn-$column['size'], SEEK_CUR );
+            // reset size to jump counter
+            $sizeToJump = 0;
         }
-        // jump to the end of the row
-        fseek($this->table->storage()->handle(), +$this->systemRowSize+$this->rowSize, SEEK_CUR );
+        // if anything left to jump
+        if ($sizeToJump > 0) {
+            // jump to the end of the row
+            fseek($this->table->storage()->handle(), $sizeToJump, SEEK_CUR );
+        }
     }
 
     public function delete()
