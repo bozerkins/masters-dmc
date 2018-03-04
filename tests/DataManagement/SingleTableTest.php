@@ -337,33 +337,55 @@ class SingleTableTest extends TestCase
         $table->load($this->workingStructure());
         $table->storage()->createAndFlush();
 
+
+        $iterator = $table->newIterator();
+
+        $iterator->table()->reserve(Table::RESERVE_WRITE);
+
+        $iterator->jump(1);
+
+        $records = [];
         foreach(range(1,20) as $index) {
-            $table->create(
-                [
-                    'ID' => $index,
-                    'Profit' => rand(200,10000) / 100,
-                    'ProductTitle' => 'Title' . base64_encode(random_bytes(rand(5,10))) . $index . 'End',
-                    'Severity' => rand(1,20)
-                ]
+            $records[] = $record = [
+                'ID' => $index,
+                'Profit' => rand(200,10000) / 100,
+                'ProductTitle' => 'Title' . base64_encode(random_bytes(rand(5,10))) . $index . 'End',
+                'Severity' => rand(1,20)
+            ];
+            $iterator->create(
+                $record
             );
         }
 
-        $table->reserve(Table::RESERVE_READ);
+        $iterator->table()->release();
 
-        $iterator = $table->newIterator();
-        $record = null;
-        while($iterator->endOfTable() !== true) {
-            $record = $iterator->next();
-            if ($record === null) {
-                break;
-            }
-//            dump($record);
-        }
+        $iterator->table()->reserve(Table::RESERVE_READ);
 
         $iterator->jump(10);
-        dump($iterator->next());
+        $record = $iterator->read();
+        $this->assertEquals($records[9], $record);
 
-        $table->release();
+        $iterator->table()->release();
+
+        $iterator->table()->reserve(Table::RESERVE_READ_AND_WRITE);
+
+        $iterator->jump(10);
+        $iterator->update(
+            [
+                'ID' => 30,
+                'ProductTitle' => 'elk'
+            ]
+        );
+        $record = $iterator->read();
+        $initialRecord = $records[9];
+        $initialRecord['ID'] = 30;
+        $initialRecord['ProductTitle'] = 'elk';
+        $this->assertEquals($initialRecord, $record);
+
+        $iterator->delete();
+        $this->assertEquals(null, $iterator->read());
+
+        $iterator->table()->release();
     }
 
     /**

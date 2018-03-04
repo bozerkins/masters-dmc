@@ -206,8 +206,8 @@ class Table
             if ($operation === self::OPERATION_UPDATE_INCLUDE) {
                 $updates = $change($record) ?? [];
                 foreach($updates as $name => $update) {
-                    $column = $this->getColumnByName($name);
-                    $sizeUntilColumn = $this->getSizeUntilColumnByName($name);
+                    $column = TableHelper::getColumnByName($this, $name);
+                    $sizeUntilColumn = TableHelper::getSizeUntilColumnByName($this, $name);
                     fseek($this->storage->handle(), -$size+$sizeUntilColumn, SEEK_CUR );
                     $columnFormat = TableHelper::getFormatCode($column);
                     $columnPacked = pack($columnFormat, $update);
@@ -332,38 +332,6 @@ class Table
         $this->storage()->release();
         $this->storage->close();
         $this->reserve = null;
-    }
-
-    /**
-     * @param string $name
-     * @return int
-     * @throws \Exception
-     */
-    private function getSizeUntilColumnByName(string $name)
-    {
-        $size = 0;
-        foreach($this->columns as $column) {
-            if ($column['name'] === $name) {
-                return $size;
-            }
-            $size += $column['size'];
-        }
-        throw new \Exception(sprintf('no column by the name %s found', $name));
-    }
-
-    /**
-     * @param string $name
-     * @return mixed
-     * @throws \Exception
-     */
-    private function getColumnByName(string $name)
-    {
-        foreach($this->columns as $column) {
-            if ($column['name'] === $name) {
-                return $column;
-            }
-        }
-        throw new \Exception(sprintf('no column by the name %s found', $name));
     }
 
     /**
