@@ -64,7 +64,7 @@ class TableIterator
 
     public function position()
     {
-        return floor(ftell($this->table->storage()->handle()) / ($this->systemRowSize + $this->rowSize));
+        return (int) floor(ftell($this->table->storage()->handle()) / ($this->systemRowSize + $this->rowSize));
     }
 
     /**

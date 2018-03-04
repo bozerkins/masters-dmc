@@ -11,6 +11,7 @@ namespace DataManagement;
 use DataManagement\Model\EntityRelationship\Table;
 use DataManagement\Model\EntityRelationship\TableHelper;
 use DataManagement\Model\EntityRelationship\TableIteration;
+use DataManagement\Model\EntityRelationship\TableIterator;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 
@@ -312,8 +313,8 @@ class SingleTableTest extends TestCase
             $table->create($record);
         }
 
-        $table->delete(function($record) {
-            if ($record['ID'] === 2 || $record['ID'] === 3) {
+        $table->delete(function($record, TableIterator $iterator) {
+            if ($record['ID'] === 2 || ($iterator->position() - 1) === 2) {
                 return Table::OPERATION_DELETE_INCLUDE;
             }
         });
