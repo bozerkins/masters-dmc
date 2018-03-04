@@ -121,7 +121,7 @@ class Table
             if ($record === null) {
                 continue;
             }
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_READ_INCLUDE) {
                 $result[] = $record;
                 continue;
@@ -157,9 +157,9 @@ class Table
             if ($record === null) {
                 continue;
             }
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_UPDATE_INCLUDE) {
-                $updates = $change($record) ?? [];
+                $updates = $change($record, $iterator) ?? [];
                 $iterator->rewind(1);
                 $iterator->update($updates);
                 continue;
@@ -189,7 +189,7 @@ class Table
                 continue;
             }
 
-            $operation = $search($record);
+            $operation = $search($record, $iterator);
             if ($operation === self::OPERATION_DELETE_INCLUDE) {
                 $iterator->rewind(1);
                 $iterator->delete();
