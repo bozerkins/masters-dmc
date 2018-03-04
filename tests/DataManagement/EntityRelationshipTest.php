@@ -235,11 +235,50 @@ class EntityRelationshipTest extends TestCase
     /**
      * @throws \Exception
      */
-    public function testTableOptimize()
+    public function testLazyLockingFailWrite()
     {
         $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
         $table->load($this->workingStructure());
         $table->storage()->createAndFlush();
+
+        $this->expectException(\Exception::class);
+
+        $table->reserve(Table::RESERVE_READ);
+        $table->create([
+            'ID' => 1,
+            'Profit' => 15.22,
+            'ProductTitle' => 'TestProduct',
+            'Severity' => 12
+        ]);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testLazyLockingFailRead()
+    {
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        $this->expectException(\Exception::class);
+
+        $table->reserve(Table::RESERVE_WRITE);
+        $result = $table->read(function(){
+            return Table::OPERATION_READ_INCLUDE;
+        });
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testLazyLockingWorks()
+    {
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        $table->reserve(Table::RESERVE_READ_AND_WRITE);
 
         $records = [];
         $records[] = [
@@ -281,15 +320,11 @@ class EntityRelationshipTest extends TestCase
             return Table::OPERATION_READ_INCLUDE;
         });
 
+        $table->release();
+
         $this->assertEquals([$records[0], $records[3]], $result);
 
-        clearstatcache();
-        $fsize = filesize($table->storage()->file());
 
-        $table->optimize();
-
-        clearstatcache();
-        $fsize = filesize($table->storage()->file());
     }
 
     /**

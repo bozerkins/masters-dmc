@@ -31,10 +31,16 @@ class Table
     const INTERNAL_ROW_STATE_ACTIVE = 97; // a
     const INTERNAL_ROW_STATE_DELETE = 100; // d
 
+    const RESERVE_READ = 1;
+    const RESERVE_WRITE = 2;
+    const RESERVE_READ_AND_WRITE = 3;
+
     /** @var array with columns id, name, type, size */
     private $columns = [];
     /** @var FileStorage  */
     private $storage;
+    /** @var int|null  */
+    private $reserve = null;
 
     /**
      * Table constructor.
@@ -59,8 +65,6 @@ class Table
      */
     public function create(array $record)
     {
-        $this->storage->open('cb');
-
         $recordForPacking = [];
         $formatCodes = [];
         $recordSize = 0;
@@ -80,12 +84,12 @@ class Table
 
         $recordPacked = pack(implode('', $formatCodes), ...$recordForPacking);
 
-        $this->storage->acquire(LOCK_EX);
+        $canRelease = $this->tryReserve(self::RESERVE_WRITE);
 
         fseek($this->storage->handle(), 0, SEEK_END);
         fwrite($this->storage->handle(), $recordPacked, $recordSize);
 
-        $this->storage->close();
+        $canRelease && $this->release();
     }
 
     /**
@@ -95,13 +99,13 @@ class Table
      */
     public function iterate(\Closure $search)
     {
-        $this->storage->open('rb');
-        $this->storage->acquire(LOCK_SH);
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
 
+        $canRelease = $this->tryReserve(self::RESERVE_READ);
+        fseek($this->storage->handle(), 0, SEEK_SET);
         while (feof($this->storage->handle()) === false) {
             $systemSize = 1;
             $systemRecordPacked = fread($this->storage->handle(), $systemSize);
@@ -120,7 +124,7 @@ class Table
                 break;
             }
         }
-        $this->storage->close();
+        $canRelease && $this->release();
     }
 
     /**
@@ -130,14 +134,14 @@ class Table
      */
     public function read(\Closure $search) : array
     {
-        $this->storage->open('rb');
-        $this->storage->acquire(LOCK_SH);
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
 
         $result = [];
+        $canRelease = $this->tryReserve(self::RESERVE_READ);
+        fseek($this->storage->handle(), 0, SEEK_SET);
         while (feof($this->storage->handle()) === false) {
             $systemSize = 1;
             $systemRecordPacked = fread($this->storage->handle(), $systemSize);
@@ -164,8 +168,7 @@ class Table
                 break;
             }
         }
-
-        $this->storage->close();
+        $canRelease && $this->release();
 
         return $result;
     }
@@ -177,12 +180,13 @@ class Table
      */
     public function update(\Closure $search, \Closure $change)
     {
-        $this->storage->open('c+b');
-        $this->storage->acquire(LOCK_EX);
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
+
+        $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
+        fseek($this->storage->handle(), 0, SEEK_SET);
         while (feof($this->storage->handle()) === false) {
             $systemSize = 1;
             $systemRecordPacked = fread($this->storage->handle(), $systemSize);
@@ -213,7 +217,7 @@ class Table
                 break;
             }
         }
-        $this->storage->close();
+        $canRelease && $this->release();
     }
 
     /**
@@ -222,13 +226,13 @@ class Table
      */
     public function delete(\Closure $search)
     {
-        $this->storage->open('c+b');
-        $this->storage->acquire(LOCK_EX);
         $size = array_sum(array_column($this->columns, 'size'));
         $format = implode('/', array_map(function($column, $formatCode) {
             return $formatCode . $column['name'];
         }, $this->columns, array_map([$this, 'getFormatCode'], $this->columns)));
 
+        $canRelease = $this->tryReserve(self::RESERVE_READ_AND_WRITE);
+        fseek($this->storage->handle(), 0, SEEK_SET);
         while (feof($this->storage->handle()) === false) {
             $systemSize = 1;
             $systemRecordPacked = fread($this->storage->handle(), $systemSize);
@@ -261,7 +265,71 @@ class Table
                 break;
             }
         }
+        $canRelease && $this->release();
+    }
+
+    /**
+     * @param int $mode
+     * @throws \Exception
+     */
+    public function reserve(int $mode)
+    {
+        if ($this->reserve !== null) {
+            throw new \Exception('cannot reserve the resource, because it\'s already reserved');
+        }
+        $this->reserve = $mode;
+        if ($this->reserve === self::RESERVE_READ) {
+            $this->storage->open('rb');
+            $this->storage->acquire(LOCK_SH);
+            return;
+        }
+        if ($this->reserve === self::RESERVE_WRITE) {
+            $this->storage->open('cb');
+            $this->storage->acquire(LOCK_EX);
+            return;
+        }
+        if ($this->reserve === self::RESERVE_READ_AND_WRITE) {
+            $this->storage->open('c+b');
+            $this->storage->acquire(LOCK_EX);
+            return;
+        }
+        throw new \Exception('invalid reserve mode passed');
+    }
+
+    /**
+     * @param int $mode
+     * @return bool if the operation was run
+     * @throws \Exception
+     */
+    private function tryReserve(int $mode) : bool
+    {
+        if ($this->reserve === null) {
+            $this->reserve($mode);
+            return true;
+        }
+        if ($mode === $this->reserve) {
+            return false;
+        }
+        if (
+            ($mode === self::RESERVE_READ || $mode === self::RESERVE_WRITE)
+            && ($this->reserve === self::RESERVE_READ_AND_WRITE)
+        ) {
+            return false;
+        }
+        throw new \Exception('currently active reserve mode is not compatible with required operation');
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function release()
+    {
+        if ($this->reserve === null) {
+            throw new \Exception('reserve is not set, nothing to release');
+        }
+        $this->storage()->release();
         $this->storage->close();
+        $this->reserve = null;
     }
 
     /**
