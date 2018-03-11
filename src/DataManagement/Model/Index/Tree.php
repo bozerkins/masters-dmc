@@ -41,9 +41,29 @@ class Tree
             return;
         }
 
-        $firstBucketNode = $this->search($node);
+        $firstBucketNode = $this->search($node->value());
         $this->addToBucket($firstBucketNode, $node);
         $this->splitBucketIfFull($this->bucketFirstNode($node));
+    }
+
+    /**
+     * @param $value
+     * @return Node
+     * @throws \Exception
+     */
+    public function find($value) : Node
+    {
+        $node = $this->search($value);
+        while(true) {
+            if ($node->value() === $value) {
+                return $node;
+            }
+            if ($node->hasNextInBucket() === false) {
+                break;
+            }
+            $node = $node->nextInBucket();
+        }
+        throw new \Exception('value not found');
     }
 
     /**
@@ -124,11 +144,11 @@ class Tree
 
     /**
      * Returns the first node of the bucket
-     * @param Node $node
+     * @param mixed $value
      * @return Node
      * @throws \Exception
      */
-    public function search(Node $node) : Node
+    private function search($value) : Node
     {
         /** @var Node $searchNode */
         $searchNode = $this->root->leftNode();
@@ -137,14 +157,14 @@ class Tree
             // is middle of the tree
             if ($searchNode->isLeaf() === false) {
                 // if the search node is more, then jump left right away
-                if ($searchNode->value() > $node->value()) {
+                if ($searchNode->value() > $value) {
                     $searchNode = $searchNode->leftNode();
                     continue;
                 }
                 // has next bucket
                 if ($searchNode->hasNextInBucket()) {
                     // check if node value fits
-                    if ($searchNode->value() < $node->value() && $searchNode->nextInBucket()->value() > $node->value()) {
+                    if ($searchNode->value() < $value && $searchNode->nextInBucket()->value() > $value) {
                         // go down the tree
                         $searchNode = $searchNode->rightNode();
                         continue;
@@ -154,7 +174,7 @@ class Tree
                     continue;
                 }
                 // has no next bucket - check if we can jump right
-                if ($searchNode->value() < $node->value()) {
+                if ($searchNode->value() < $value) {
                     $searchNode = $searchNode->rightNode();
                     continue;
                 }
@@ -172,7 +192,7 @@ class Tree
      * @param Node $node
      * @throws \Exception
      */
-    public function splitBucketIfFull(Node $node)
+    private function splitBucketIfFull(Node $node)
     {
         if ($this->isBucketFull($node) === false) {
             return;
@@ -188,11 +208,8 @@ class Tree
      * @return Node
      * @throws \Exception
      */
-    public function splitBucket(Node $node) : Node
+    private function splitBucket(Node $node) : Node
     {
-        echo PHP_EOL, 'split', PHP_EOL;
-        $this->displayRecursively($this->root->leftNode(), 0);
-
         $firstBucketSize = (int) floor($this->bucketSize / 2);
         $secondBucketSize = (int) ceil($this->bucketSize / 2);
         /** @var Node[] $firstBucket */
@@ -245,7 +262,7 @@ class Tree
         return $bucketRootNode;
     }
 
-    public function isBucketFull(Node $node) : bool
+    private function isBucketFull(Node $node) : bool
     {
         $counter = 1;
         while($node->hasNextInBucket()) {
