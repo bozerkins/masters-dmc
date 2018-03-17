@@ -22,63 +22,39 @@ class IndexConstructionTest extends TestCase
     /**
      * @throws \Exception
      */
-    public function testIndexFormationForUniqueValuesSet()
+    public function testIndexFormationSimple()
     {
-//        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
-//        $table->load($this->workingStructure());
-//        $table->storage()->createAndFlush();
-
-        $values = $this->getValuesUnique();
-        $values = array_values(array_splice($values, 0, 20));
-
         $tree = new Tree();
-        foreach($values as $index => $value) {
+        foreach([5,7,3,1,2] as $index => $value) {
             $node = new Node($index, $value);
             $tree->add($node);
         }
 
-        $node = $tree->find(25);
-        dump([$node->value(), $node->location()]);
+        $this->assertEquals('	5(0)
+	left
+		1(3)
+		2(4)
+		3(2)
+	right
+		7(1)
+', $tree->display());
 
-        echo 'tree:', PHP_EOL;
+        $node = $tree->find(2);
+        $this->assertEquals(2, $node->value());
+        $this->assertEquals(4, $node->location());
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testIndexDeletionSimple()
+    {
+        $tree = new Tree();
+        foreach([5,7,3,1,2] as $index => $value) {
+            $node = new Node($index, $value);
+            $tree->add($node);
+        }
+
         echo $tree->display();
-        echo PHP_EOL;
-
-//        dump($tree);
-
-        $this->assertEquals(1,1);
-
-
-    }
-
-    private function getValuesUnique()
-    {
-        return array_values(array_unique($this->getValues()));
-    }
-
-    private function getValues()
-    {
-        return array (
-            0 => 19,
-            1 => 26,
-            2 => 13,
-            3 => 20,
-            4 => 11,
-            5 => 4,
-            6 => 18,
-            7 => 21,
-            8 => 27,
-            9 => 7,
-            10 => 17,
-            11 => 14,
-            12 => 11,
-            13 => 9,
-            14 => 11,
-            15 => 18,
-            16 => 24,
-            17 => 27,
-            18 => 25,
-            19 => 2,
-        );
     }
 }
