@@ -32,7 +32,7 @@ class Tree
      * @param Node $node
      * @throws \Exception
      */
-    public function add(Node $node)
+    public function create(Node $node)
     {
         // handle first node in the tree
         if ($this->root->hasLeftNode() === false) {
@@ -51,7 +51,7 @@ class Tree
      * @return Node
      * @throws \Exception
      */
-    public function find($value) : Node
+    public function read($value) : Node
     {
         $node = $this->search($value);
         while(true) {
@@ -64,6 +64,73 @@ class Tree
             $node = $node->nextInBucket();
         }
         throw new \Exception('value not found');
+    }
+
+    /**
+     * @param $value
+     * @throws \Exception
+     */
+    public function delete($value)
+    {
+        $node = $this->read($value);
+        if ($node->isLeaf() === false) {
+            throw new \Exception('non-leaf deletion not supported yet');
+        }
+
+        // collect the locations
+        $current = $this->bucketFirstNode($node);
+        $previous = null;
+        $next = null;
+        do {
+            if ($current->value() === $node->value()) {
+                break;
+            }
+            $previous = $current;
+        } while($current->hasNextInBucket() && $current = $current->nextInBucket());
+
+        if ($node->hasNextInBucket()) {
+            $next = $node->nextInBucket();
+        }
+
+        // process
+        if ($next === null && $previous !== null) {
+            // the node is last in bucket
+            $previous->detachNextInBucket();
+        }
+        if ($next !== null && $previous === null) {
+            // the node is first in bucket
+            $parentNode = $node->parentNode();
+            if ($parentNode->isRootBucket()) {
+                $parentNode->addLeftNode($next);
+            } elseif ($parentNode->hasRightNode() && $parentNode->value() < $node->value()) {
+                // TODO: check if more parents link to this node
+                $parentNode->addRightNode($next);
+            } elseif ($parentNode->hasLeftNode() && $parentNode->value() > $node->value()) {
+                // TODO: check if more parents link to this node
+                $parentNode->addLeftNode($next);
+            }
+        }
+        if ($next !== null && $previous !== null) {
+            // link between nodes
+            $previous->addNextInBucket($next);
+        }
+        if ($next === null && $previous === null) {
+            // eliminate the bucket
+            // the node is first in bucket
+            $parentNode = $node->parentNode();
+            if ($parentNode->isRootBucket()) {
+                $parentNode->detachLeftNode();
+            } elseif ($parentNode->hasRightNode() && $parentNode->value() < $node->value()) {
+                // TODO: check if more parents link to this node
+                $parentNode->detachRightNode();
+            } elseif ($parentNode->hasLeftNode() && $parentNode->value() > $node->value()) {
+                // TODO: check if more parents link to this node
+                $parentNode->detachLeftNode();
+            }
+        }
+
+        // remove original node
+        unset($node);
     }
 
     /**
@@ -86,6 +153,11 @@ class Tree
         throw new \Exception('could not find bucket first node');
     }
 
+    /**
+     * @param Node $firstBucketNode
+     * @param Node $node
+     * @throws \Exception
+     */
     private function addToBucket(Node $firstBucketNode, Node $node)
     {
         // link to parent

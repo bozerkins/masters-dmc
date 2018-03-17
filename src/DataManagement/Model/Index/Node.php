@@ -84,6 +84,11 @@ class Node
         return $this->leftNode;
     }
 
+    public function detachLeftNode()
+    {
+        $this->leftNode = null;
+    }
+
     public function addRightNode(Node $node)
     {
         $this->rightNode = $node;
@@ -97,6 +102,11 @@ class Node
     public function rightNode() : Node
     {
         return $this->rightNode;
+    }
+
+    public function detachRightNode()
+    {
+        $this->rightNode = null;
     }
 
     public function isLeaf() : bool

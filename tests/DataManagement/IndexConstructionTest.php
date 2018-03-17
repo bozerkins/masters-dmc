@@ -27,7 +27,7 @@ class IndexConstructionTest extends TestCase
         $tree = new Tree();
         foreach([5,7,3,1,2] as $index => $value) {
             $node = new Node($index, $value);
-            $tree->add($node);
+            $tree->create($node);
         }
 
         $this->assertEquals('	5(0)
@@ -39,7 +39,7 @@ class IndexConstructionTest extends TestCase
 		7(1)
 ', $tree->display());
 
-        $node = $tree->find(2);
+        $node = $tree->read(2);
         $this->assertEquals(2, $node->value());
         $this->assertEquals(4, $node->location());
     }
@@ -47,14 +47,126 @@ class IndexConstructionTest extends TestCase
     /**
      * @throws \Exception
      */
-    public function testIndexDeletionSimple()
+    public function testIndexDeletionLastLeaf()
+    {
+        $tree = $this->createTestTree();
+
+        $tree->delete(7);
+
+        $this->assertEquals('	5(0)
+	left
+		1(3)
+		2(4)
+		3(2)
+', $tree->display());
+    }
+
+
+    /**
+     * @throws \Exception
+     */
+    public function testIndexDeletionLeftLeaf()
+    {
+        $tree = $this->createTestTree();
+
+        $tree->delete(1);
+
+        $this->assertEquals('	5(0)
+	left
+		2(4)
+		3(2)
+	right
+		7(1)
+', $tree->display());
+    }
+
+
+    /**
+     * @throws \Exception
+     */
+    public function testIndexDeletionRightLeaf()
+    {
+        $tree = $this->createTestTree();
+
+        $tree->delete(3);
+
+        $this->assertEquals('	5(0)
+	left
+		1(3)
+		2(4)
+	right
+		7(1)
+', $tree->display());
+    }
+
+
+    /**
+     * @throws \Exception
+     */
+    public function testIndexDeletionMiddleLeaf()
+    {
+        $tree = $this->createTestTree();
+
+        $tree->delete(2);
+
+        $this->assertEquals('	5(0)
+	left
+		1(3)
+		3(2)
+	right
+		7(1)
+', $tree->display());
+    }
+
+
+    /**
+     * @throws \Exception
+     */
+    public function testIndexParentRedistribution()
+    {
+        $tree = $this->createDeepTestTree();
+
+        echo $tree->display();
+
+        $tree->delete(14);
+
+        echo PHP_EOL;
+
+        echo $tree->display();
+
+        $tree->create(new Node(1234, 14));
+
+        echo PHP_EOL;
+
+        echo $tree->display();
+    }
+
+    /**
+     * @return Tree
+     * @throws \Exception
+     */
+    private function createTestTree()
     {
         $tree = new Tree();
         foreach([5,7,3,1,2] as $index => $value) {
             $node = new Node($index, $value);
-            $tree->add($node);
+            $tree->create($node);
         }
+        return $tree;
+    }
 
-        echo $tree->display();
+
+    /**
+     * @return Tree
+     * @throws \Exception
+     */
+    private function createDeepTestTree()
+    {
+        $tree = new Tree();
+        foreach([5,7,3,1,2, 9, 15, 45, 11, 17, 14] as $index => $value) {
+            $node = new Node($index, $value);
+            $tree->create($node);
+        }
+        return $tree;
     }
 }
