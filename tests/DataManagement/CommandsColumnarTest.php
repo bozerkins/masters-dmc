@@ -133,6 +133,9 @@ class CommandsColumnarTest extends TestCase
         }
 
         $output = shell_exec(__DIR__ . '/../../bin/dmc dmc:col:table-partitions ' . $instructionsFile);
-        $this->assertEquals("2017-01-07\n2017-01-09\n2017-01-04\n2017-01-03\n2017-01-02\n2017-01-06\n2017-01-05\n2017-01-08\n", $output);
+        $outputArr = explode(PHP_EOL, trim($output));
+        sort($outputArr);
+        sort($partitions);
+        $this->assertEquals($partitions, $outputArr);
     }
 }
