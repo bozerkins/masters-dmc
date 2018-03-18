@@ -1,5 +1,5 @@
 {
-    "name": "bozerkins/dmc",
+    "name": "bozerkins/data-management-components",
     "require": {
         "php": ">=7.0.0",
         "symfony/options-resolver": "^3.4",
