@@ -24,52 +24,32 @@ class IndexConstructionTest extends TestCase
      */
     public function testIndexFormationSimple()
     {
-        $tree = new Tree();
-        foreach([5,7,3,1,2] as $index => $value) {
-            $node = new Node($index, $value);
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load(Node::structure(TableHelper::COLUMN_TYPE_INTEGER, TableHelper::getSizeByType(TableHelper::COLUMN_TYPE_INTEGER)));
+        $table->storage()->createAndFlush();
+
+        $table->reserve(Table::RESERVE_READ_AND_WRITE);
+
+        $rootNode = new Node($table);
+        $rootNode->createOnStorage(0);
+        $tree = new Tree($table, $rootNode, 4);
+        foreach ([5, 7, 3, 1, 2] as $index => $value) {
+            $node = $tree->newNode($value);
             $tree->create($node);
         }
 
-        $this->assertEquals('	5(0)
+        $this->assertEquals('	5(1)
 	left
-		1(3)
-		2(4)
-		3(2)
+		1(4)
+		2(5)
+		3(3)
 	right
-		7(1)
-', $tree->display());
-
+		7(2)
+', $tree->draw());
         $node = $tree->read(2);
         $this->assertEquals(2, $node->value());
-        $this->assertEquals(4, $node->location());
-    }
+        $this->assertEquals(5, $node->location());
 
-    /**
-     * @return Tree
-     * @throws \Exception
-     */
-    private function createTestTree()
-    {
-        $tree = new Tree();
-        foreach([5,7,3,1,2] as $index => $value) {
-            $node = new Node($index, $value);
-            $tree->create($node);
-        }
-        return $tree;
-    }
-
-
-    /**
-     * @return Tree
-     * @throws \Exception
-     */
-    private function createDeepTestTree()
-    {
-        $tree = new Tree();
-        foreach([5,7,3,1,2, 9, 15, 45, 11, 17, 14] as $index => $value) {
-            $node = new Node($index, $value);
-            $tree->create($node);
-        }
-        return $tree;
+        $table->release();
     }
 }

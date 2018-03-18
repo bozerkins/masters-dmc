@@ -9,23 +9,48 @@
 namespace DataManagement\Model\Index;
 
 
+use DataManagement\Model\EntityRelationship\Table;
+
 class Tree
 {
     /**
      * @var Node
      */
     private $root = null;
+
     /**
      * @var int
      */
     private $bucketSize = null;
 
-    public $debug = false;
+    /**
+     * @var Table
+     */
+    private $table = null;
 
-    public function __construct(int $bucketSize = 4)
+    /**
+     * Tree constructor.
+     * @param Table $table
+     * @param Node $rootNode
+     * @param int $bucketSize
+     */
+    public function __construct(Table $table, Node $rootNode, int $bucketSize)
     {
-        $this->root = new Node(null, null);
+        $this->table = $table;
+        $this->root = $rootNode;
         $this->bucketSize = $bucketSize;
+    }
+
+    /**
+     * @param $value
+     * @return Node
+     * @throws \Exception
+     */
+    public function newNode($value) : Node
+    {
+        $node = new Node($this->table);
+        $node->createOnStorage($value);
+        return $node;
     }
 
     /**
@@ -64,6 +89,20 @@ class Tree
             $node = $node->nextInBucket();
         }
         throw new \Exception('value not found');
+    }
+
+    /**
+     * @return string
+     * @throws \Exception
+     */
+    public function draw() : string
+    {
+        $response = '';
+        $start = $this->root->leftNode();
+        $depth = 0;
+        $response .= $this->drawRecursively($start, $depth + 1);
+        return $response;
+
     }
 
     /**
@@ -267,6 +306,11 @@ class Tree
         return $bucketRootNode;
     }
 
+    /**
+     * @param Node $node
+     * @return bool
+     * @throws \Exception
+     */
     private function isBucketFull(Node $node) : bool
     {
         $counter = 1;
@@ -277,17 +321,13 @@ class Tree
         return $counter >= $this->bucketSize;
     }
 
-    public function display() : string
-    {
-        $response = '';
-        $start = $this->root->leftNode();
-        $depth = 0;
-        $response .= $this->displayRecursively($start, $depth + 1);
-        return $response;
-
-    }
-
-    private function displayRecursively(Node $node, int $depth) : string
+    /**
+     * @param Node $node
+     * @param int $depth
+     * @return string
+     * @throws \Exception
+     */
+    private function drawRecursively(Node $node, int $depth) : string
     {
         $response = '';
         $prefix = str_repeat("\t", $depth);
@@ -295,11 +335,11 @@ class Tree
             $response .= $prefix . $node->value() . '(' . $node->location() . ')' . PHP_EOL;
             if ($node->hasLeftNode()) {
                 $response .= $prefix . 'left' . PHP_EOL;
-                $response .= $this->displayRecursively($node->leftNode(), $depth + 1);
+                $response .= $this->drawRecursively($node->leftNode(), $depth + 1);
             }
             if ($node->hasRightNode()) {
                 $response .= $prefix . 'right' . PHP_EOL;
-                $response .= $this->displayRecursively($node->rightNode(), $depth + 1);
+                $response .= $this->drawRecursively($node->rightNode(), $depth + 1);
             }
             if ($node->hasNextInBucket() === false) {
                 break;
