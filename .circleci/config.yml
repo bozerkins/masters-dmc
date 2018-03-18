@@ -32,7 +32,7 @@ jobs:
       - run:
           name: Install project dependencies
           command: php composer.phar install
-      - runL
+      - run:
           name: Permissions for bin commands
           command: sudo chmod +x bin/dmc && sudo chmod 0777 bin/dmc
       - run:
