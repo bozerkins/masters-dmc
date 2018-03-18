@@ -12,3 +12,6 @@ Basic installation with <a href="https://getcomposer.org/download/">composer</a>
 ```shell
 composer require bozerkins/data-management-components
 ```
+## Documentation
+
+Make sure to check out the <a href="https://github.com/bozerkins/dmc/wiki">docs</a> for usage example
