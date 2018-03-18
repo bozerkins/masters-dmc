@@ -49,27 +49,27 @@ class TableIterator
 
     public function skip(int $amountOfRecords)
     {
-        fseek($this->table->storage()->handle(), $amountOfRecords * ($this->rowSize + $this->systemRowSize), SEEK_CUR);
+        $this->table->storage()->seek($amountOfRecords * ($this->rowSize + $this->systemRowSize), SEEK_CUR);
     }
 
     public function rewind(int $amountOfRecords)
     {
-        fseek($this->table->storage()->handle(), -1 * $amountOfRecords * ($this->rowSize + $this->systemRowSize), SEEK_CUR);
+        $this->table->storage()->seek(-1 * $amountOfRecords * ($this->rowSize + $this->systemRowSize), SEEK_CUR);
     }
 
     public function jump(int $positionOfRecord)
     {
-        fseek($this->table->storage()->handle(), $positionOfRecord * ($this->rowSize + $this->systemRowSize), SEEK_SET);
+        $this->table->storage()->seek($positionOfRecord * ($this->rowSize + $this->systemRowSize), SEEK_SET);
     }
 
     public function end()
     {
-        fseek($this->table->storage()->handle(), 0, SEEK_END);
+        $this->table->storage()->seek(0, SEEK_END);
     }
 
     public function position()
     {
-        return (int) floor(ftell($this->table->storage()->handle()) / ($this->systemRowSize + $this->rowSize));
+        return (int) floor($this->table->storage()->tell() / ($this->systemRowSize + $this->rowSize));
     }
 
     /**
@@ -128,7 +128,7 @@ class TableIterator
         $binaryRecord = '';
         $binaryRecord .= $this->packSystemRecord(self::INTERNAL_ROW_STATE_ACTIVE);
         $binaryRecord .= $this->packRecord($record);
-        fwrite($this->table->storage()->handle(), $binaryRecord, $this->systemRowSize + $this->rowSize);
+        $this->table->storage()->write($binaryRecord, $this->systemRowSize + $this->rowSize);
     }
 
     /**
@@ -137,7 +137,7 @@ class TableIterator
      */
     public function read()
     {
-        $binaryRecord = fread($this->table->storage()->handle(), $this->systemRowSize + $this->rowSize);
+        $binaryRecord = $this->table->storage()->read($this->systemRowSize + $this->rowSize);
         if ($binaryRecord === '') {
             return null;
         }
@@ -157,7 +157,7 @@ class TableIterator
         // initialize jump size
         $sizeToJump = 0;
         // skip system row
-        fseek($this->table->storage()->handle(), +$this->systemRowSize, SEEK_CUR );
+        $this->table->storage()->seek(+$this->systemRowSize, SEEK_CUR );
         // go through the structure
         foreach($this->table->structure() as $column) {
             if (array_key_exists($column['name'], $updates) === false) {
@@ -166,16 +166,16 @@ class TableIterator
             }
             $columnPacked = pack(TableHelper::getFormatCode($column), $updates[$column['name']]);
             // jump to column beginning
-            fseek($this->table->storage()->handle(), $sizeToJump, SEEK_CUR );
+            $this->table->storage()->seek($sizeToJump, SEEK_CUR );
             // update the column
-            fwrite($this->table->storage()->handle(), $columnPacked, $column['size']);
+            $this->table->storage()->write($columnPacked, $column['size']);
             // reset size to jump counter
             $sizeToJump = 0;
         }
         // if anything left to jump
         if ($sizeToJump > 0) {
             // jump to the end of the row
-            fseek($this->table->storage()->handle(), $sizeToJump, SEEK_CUR );
+            $this->table->storage()->seek($sizeToJump, SEEK_CUR );
         }
     }
 
@@ -183,9 +183,9 @@ class TableIterator
     {
         $binarySystemRecord = $this->packSystemRecord(self::INTERNAL_ROW_STATE_DELETE);
         // write delete status
-        fwrite($this->table->storage()->handle(), $binarySystemRecord, $this->systemRowSize);
+        $this->table->storage()->write($binarySystemRecord, $this->systemRowSize);
         // return to the beginning of the row
-        fseek($this->table->storage()->handle(), +$this->rowSize, SEEK_CUR );
+        $this->table->storage()->seek(+$this->rowSize, SEEK_CUR);
     }
 
     /**
@@ -193,6 +193,6 @@ class TableIterator
      */
     public function endOfTable()
     {
-        return feof($this->table->storage()->handle());
+        return $this->table->storage()->eof();
     }
 }

@@ -74,7 +74,6 @@ class FileStorage
 
     /**
      * @param $mode
-     * @return bool|resource
      * @throws \Exception
      */
     public function open($mode)
@@ -84,6 +83,53 @@ class FileStorage
             throw new \Exception('fail to open');
         }
         $this->handle = $handle;
+    }
+
+    /**
+     * @see fread
+     * @param null $length
+     * @return bool|string
+     */
+    public function read($length)
+    {
+        return fread($this->handle, $length);
+    }
+
+    /**
+     * @see fwrite
+     * @param $string
+     * @param null $length
+     */
+    public function write($string, $length = null)
+    {
+        fwrite($this->handle, $string, $length);
+    }
+
+    /**
+     * @see fseek
+     * @param $offset
+     * @param int $whence
+     */
+    public function seek($offset, $whence = SEEK_SET)
+    {
+        fseek($this->handle, $offset, $whence );
+    }
+
+    /**
+     * @see ftell
+     * @return bool|int
+     */
+    public function tell()
+    {
+        return ftell($this->handle);
+    }
+
+    /**
+     * @return bool
+     */
+    public function eof()
+    {
+        return feof($this->handle);
     }
 
     /**
