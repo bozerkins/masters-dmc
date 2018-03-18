@@ -10,7 +10,7 @@ namespace DataManagement\Model\Index;
 
 
 use DataManagement\Model\EntityRelationship\Table;
-use DataManagement\Model\EntityRelationship\TableHelper;
+use DataManagement\Model\TableHelper;
 
 class Node
 {

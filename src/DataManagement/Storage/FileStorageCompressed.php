@@ -9,20 +9,27 @@
 namespace DataManagement\Storage;
 
 
-class FileStorage implements FileStorageInterface
+class FileStorageCompressed implements FileStorageInterface
 {
     /** @var string */
     private $file;
     /** @var resource */
     private $handle;
+    /** @var resource */
+    private $lockHandle;
+    /** @var int */
+    private $compress;
 
     /**
      * FileStorage constructor.
      * @param string $file
+     * @param int $compress level to which to compress
+     * @see gzcompress() for details on compression level
      */
-    public function __construct(string $file)
+    public function __construct(string $file, int $compress)
     {
-        $this->file = $file;
+        $this->file = $file . '.gz';
+        $this->compress = $compress;
     }
 
     /**
@@ -30,11 +37,22 @@ class FileStorage implements FileStorageInterface
      */
     public function create()
     {
+        if (false === is_dir(dirname($this->file))) {
+            @mkdir(dirname($this->file));
+        }
         if (false === file_exists($this->file)) {
             if (false === touch($this->file)) {
                 throw new \Exception('failed to create the file');
             }
         }
+    }
+
+    /**
+     * @return bool
+     */
+    public function present()
+    {
+        return is_file($this->file);
     }
 
     /**
@@ -47,8 +65,8 @@ class FileStorage implements FileStorageInterface
                 throw new \Exception('failed to create the file');
             }
         } else {
-            $handler = fopen($this->file, 'w');
-            fclose($handler);
+            $handler = gzopen($this->file, 'w');
+            gzclose($handler);
         }
     }
 
@@ -74,7 +92,7 @@ class FileStorage implements FileStorageInterface
      */
     public function open($mode)
     {
-        $handle = fopen($this->file, $mode);
+        $handle = gzopen($this->file, $mode);
         if (false === $handle) {
             throw new \Exception('fail to open');
         }
@@ -86,7 +104,7 @@ class FileStorage implements FileStorageInterface
      */
     public function close()
     {
-        if (false === fclose($this->handle)) {
+        if (false === gzclose($this->handle)) {
             throw new \Exception('fail to close');
         }
     }
@@ -98,7 +116,7 @@ class FileStorage implements FileStorageInterface
      */
     public function read($length)
     {
-        return fread($this->handle, $length);
+        return gzread($this->handle, $length);
     }
 
     /**
@@ -108,7 +126,7 @@ class FileStorage implements FileStorageInterface
      */
     public function write($string, $length = null)
     {
-        fwrite($this->handle, $string, $length);
+        gzwrite($this->handle, $string, $length);
     }
 
     /**
@@ -118,7 +136,7 @@ class FileStorage implements FileStorageInterface
      */
     public function seek($offset, $whence = SEEK_SET)
     {
-        fseek($this->handle, $offset, $whence );
+        gzseek($this->handle, $offset, $whence );
     }
 
     /**
@@ -127,7 +145,7 @@ class FileStorage implements FileStorageInterface
      */
     public function tell()
     {
-        return ftell($this->handle);
+        return gztell($this->handle);
     }
 
     /**
@@ -135,7 +153,7 @@ class FileStorage implements FileStorageInterface
      */
     public function eof()
     {
-        return feof($this->handle);
+        return gzeof($this->handle);
     }
 
     /**
@@ -144,7 +162,11 @@ class FileStorage implements FileStorageInterface
      */
     public function acquire($operation)
     {
-        if (false === flock($this->handle, $operation)) {
+        $this->lockHandle = fopen($this->file . '.lock', 'w');
+        if (false === $this->lockHandle) {
+            throw new \Exception('failed to create lock handler');
+        }
+        if (false === flock($this->lockHandle, $operation)) {
             throw new \Exception('fail to lock');
         }
     }
@@ -154,8 +176,21 @@ class FileStorage implements FileStorageInterface
      */
     public function release()
     {
-        if (flock($this->handle, LOCK_UN) === false) {
+        if (false === $this->lockHandle) {
+            throw new \Exception('cannot unlock without active handle');
+        }
+        if (flock($this->lockHandle, LOCK_UN) === false) {
             throw new \Exception('fail to unlock');
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function remove()
+    {
+        if (false === unlink($this->file)) {
+            throw new \Exception('failed to remove the file');
         }
     }
 }

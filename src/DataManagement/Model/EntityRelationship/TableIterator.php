@@ -8,8 +8,7 @@
 
 namespace DataManagement\Model\EntityRelationship;
 
-
-use DataManagement\Storage\FileStorage;
+use DataManagement\Model\TableHelper;
 
 class TableIterator
 {

@@ -9,8 +9,8 @@
 namespace DataManagement;
 
 use DataManagement\Model\EntityRelationship\Table;
-use DataManagement\Model\EntityRelationship\TableHelper;
 use DataManagement\Model\EntityRelationship\TableIterator;
+use DataManagement\Model\TableHelper;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
 

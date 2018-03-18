@@ -6,7 +6,7 @@
  * Time: 15:16
  */
 
-namespace DataManagement\Model\EntityRelationship;
+namespace DataManagement\Model;
 
 
 class TableHelper
@@ -65,38 +65,35 @@ class TableHelper
         }
     }
 
-
     /**
-     * @param Table $table
-     * @param string $name
-     * @return int
-     * @throws \Exception
-     */
-    public static function getSizeUntilColumnByName(Table $table, string $name)
-    {
-        $size = 0;
-        foreach($table->structure() as $column) {
-            if ($column['name'] === $name) {
-                return $size;
-            }
-            $size += $column['size'];
-        }
-        throw new \Exception(sprintf('no column by the name %s found', $name));
-    }
-
-    /**
-     * @param Table $table
+     * @param array $tableStructure
      * @param string $name
      * @return mixed
      * @throws \Exception
      */
-    public static function getColumnByName(Table $table, string $name)
+    public static function getColumnByName(array $tableStructure, string $name)
     {
-        foreach($table->structure() as $column) {
+        foreach($tableStructure as $column) {
             if ($column['name'] === $name) {
                 return $column;
             }
         }
         throw new \Exception(sprintf('no column by the name %s found', $name));
+    }
+
+    /**
+     * @param array $tableStructure
+     * @param int $id
+     * @return mixed
+     * @throws \Exception
+     */
+    public static function getColumnById(array $tableStructure, int $id)
+    {
+        foreach($tableStructure as $column) {
+            if ($column['id'] === $id) {
+                return $column;
+            }
+        }
+        throw new \Exception(sprintf('no column by the id %s found', $id));
     }
 }
