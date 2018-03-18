@@ -15,3 +15,8 @@ composer require bozerkins/data-management-components
 ## Documentation
 
 Make sure to check out the <a href="https://github.com/bozerkins/dmc/wiki">docs</a> for usage example
+
+## Support
+
+How much do we care?
+Enough to leave an email just here: <a href="b.ozerkins@gmail.com">b.ozerkins@gmail.com</a>
