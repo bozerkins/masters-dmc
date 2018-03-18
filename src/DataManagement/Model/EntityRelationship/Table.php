@@ -54,6 +54,29 @@ class Table
     }
 
     /**
+     * @return int
+     */
+    public function amountOfRecords()
+    {
+        clearstatcache($this->storage->file());
+        $iterator = $this->newIterator();
+        return filesize($this->storage->file()) / $iterator->rowCompleteSize();
+    }
+
+    /**
+     * @return int
+     * @throws \Exception
+     */
+    public function amountOfActiveRecords()
+    {
+        $counter = 0;
+        $this->iterate(function($record) use (&$counter) {
+            $counter++;
+        });
+        return $counter;
+    }
+
+    /**
      * @return TableIterator
      */
     public function newIterator()

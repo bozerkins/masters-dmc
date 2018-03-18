@@ -37,6 +37,11 @@ class TableIterator
         $this->systemRowWriteFormat = 'C';
     }
 
+    public function rowCompleteSize()
+    {
+        return $this->rowSize + $this->systemRowSize;
+    }
+
     public function table()
     {
         return $this->table;
