@@ -10,7 +10,6 @@ namespace DataManagement;
 
 use DataManagement\Model\EntityRelationship\Table;
 use DataManagement\Model\EntityRelationship\TableHelper;
-use DataManagement\Model\EntityRelationship\TableIteration;
 use DataManagement\Model\EntityRelationship\TableIterator;
 use DataManagement\Storage\FileStorage;
 use PHPUnit\Framework\TestCase;
@@ -390,6 +389,50 @@ class SingleTableTest extends TestCase
         $this->assertEquals(null, $iterator->read());
 
         $iterator->table()->release();
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function testTableSize()
+    {
+        $table = new Table(new FileStorage(tempnam('/tmp', 'test_table_')));
+        $table->load($this->workingStructure());
+        $table->storage()->createAndFlush();
+
+        $records = [];
+        $records[] = [
+            'ID' => 1,
+            'Profit' => 15.22,
+            'ProductTitle' => 'TestProduct',
+            'Severity' => 12
+        ];
+        $records[] = [
+            'ID' => 2,
+            'Profit' => 11.2312,
+            'ProductTitle' => 'SomeRealProduct',
+            'Severity' => 2
+        ];
+        $records[] = [
+            'ID' => 3,
+            'Profit' => 105.22,
+            'ProductTitle' => 'NotFake',
+            'Severity' => 6
+        ];
+
+        foreach($records as $record) {
+            $table->create($record);
+        }
+
+        $table->delete(function($record) {
+            if ($record['ID'] === 2) {
+                return Table::OPERATION_DELETE_INCLUDE;
+            }
+        });
+
+        $this->assertEquals(3, $table->amountOfRecords());
+        $this->assertEquals(2, $table->amountOfActiveRecords());
+
     }
 
     /**
