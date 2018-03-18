@@ -29,7 +29,7 @@ class Table
      * Table constructor.
      * @param string $dirname
      */
-    public function __construct(string $dirname)
+    public function __construct(string $dirname = null)
     {
         $this->dirname = $dirname;
     }
@@ -300,7 +300,6 @@ class Table
      */
     public function read(array $columns, \Closure $search) : array
     {
-
         $result = [];
         $this->iterate($columns, function($record) use (&$result, $search) {
             $operation = $search($record);
