@@ -32,6 +32,9 @@ jobs:
       - run:
           name: Install project dependencies
           command: php composer.phar install
+      - runL
+          name: Permissions for bin commands
+          command: chmod +x bin/dmc
       - run:
           name: Run Unit tests
           command: vendor/bin/phpunit
