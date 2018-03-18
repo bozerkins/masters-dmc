@@ -2,7 +2,7 @@
 
 A small library implementing some of the components for data management.
 
-[![CircleCI](https://circleci.com/gh/bozerkins/data-management-components/tree/master.svg?style=shield)](https://circleci.com/gh/bozerkins/data-management-components/tree/master)
+[![CircleCI](https://circleci.com/gh/bozerkins/dmc/tree/master.svg?style=svg)](https://circleci.com/gh/bozerkins/dmc/tree/master)
 [![MIT Licence](https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php)
 
 ## Installation
