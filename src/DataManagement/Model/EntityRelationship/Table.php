@@ -22,6 +22,7 @@ class Table
 
     const OPERATION_UPDATE_INCLUDE = 1;
     const OPERATION_UPDATE_STOP = 2;
+    const OPERATION_UPDATE_INCLUDE_AND_STOP = 3;
 
     const OPERATION_DELETE_INCLUDE = 1;
     const OPERATION_DELETE_STOP = 2;
@@ -55,7 +56,7 @@ class Table
      * Table constructor.
      * @param FileStorageInterface $storage
      */
-    public function __construct(FileStorageInterface $storage)
+    public function __construct(FileStorageInterface $storage = null)
     {
         $this->storage = $storage;
     }
@@ -201,6 +202,12 @@ class Table
                 $iterator->rewind(1);
                 $iterator->update($updates);
                 continue;
+            }
+            if ($operation === self::OPERATION_UPDATE_INCLUDE_AND_STOP) {
+                $updates = $change($record, $iterator) ?? [];
+                $iterator->rewind(1);
+                $iterator->update($updates);
+                break;
             }
             if ($operation === self::OPERATION_UPDATE_STOP) {
                 break;
