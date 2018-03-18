@@ -158,4 +158,25 @@ class FileStorage implements FileStorageInterface
             throw new \Exception('fail to unlock');
         }
     }
+
+    /**
+     * @throws \Exception
+     */
+    public function remove()
+    {
+        if (false === unlink($this->file)) {
+            throw new \Exception('failed to remove the file');
+        }
+    }
+
+    /**
+     * @param string $destination
+     * @throws \Exception
+     */
+    public function move(string $destination)
+    {
+        if (false === rename($this->file, $destination)) {
+            throw new \Exception('failed to move the file');
+        }
+    }
 }

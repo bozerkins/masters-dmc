@@ -193,4 +193,15 @@ class FileStorageCompressed implements FileStorageInterface
             throw new \Exception('failed to remove the file');
         }
     }
+
+    /**
+     * @param string $destination
+     * @throws \Exception
+     */
+    public function move(string $destination)
+    {
+        if (false === rename($this->file, $destination)) {
+            throw new \Exception('failed to move the file');
+        }
+    }
 }

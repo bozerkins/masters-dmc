@@ -39,6 +39,19 @@ class Table
     private $reserve = null;
 
     /**
+     * @param string $file
+     * @return Table
+     * @throws \Exception
+     */
+    public static function newFromInstructionsFile(string $file)
+    {
+        $instructions = include $file;
+        $table = new self(new FileStorage($instructions['location']));
+        $table->load($instructions['structure']);
+        return $table;
+    }
+
+    /**
      * Table constructor.
      * @param FileStorageInterface $storage
      */

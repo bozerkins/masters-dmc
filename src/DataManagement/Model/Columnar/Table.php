@@ -35,6 +35,32 @@ class Table
     }
 
     /**
+     * @param string $file
+     * @return Table
+     * @throws \Exception
+     */
+    public static function newFromInstructionsFile(string $file)
+    {
+        $instructions = include $file;
+        $table = new self($instructions['location']);
+        $table->load($instructions['structure']);
+        return $table;
+    }
+
+    /**
+     * @return int
+     * @throws \Exception
+     */
+    public function amountOfRecords()
+    {
+        $counter = 0;
+        $this->iterate([$this->partitionColumn()['name']], function($record) use (&$counter) {
+            $counter++;
+        });
+        return $counter;
+    }
+
+    /**
      * @return string
      */
     public function directory()
@@ -50,6 +76,38 @@ class Table
         if (mkdir($this->dirname) === false) {
             throw new \Exception('failed to create the directory');
         }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function makeDirectoryAndFlush()
+    {
+        if (is_dir($this->dirname) === true) {
+            $this->removeDirectory();
+        }
+        $this->makeDirectory();
+    }
+
+    /**
+     * removes directory and all contents
+     */
+    public function removeDirectory()
+    {
+        $this->removeDirectoryRecursively($this->dirname);
+    }
+
+    /**
+     * @param string $dir
+     * @return bool
+     */
+    private function removeDirectoryRecursively(string $dir)
+    {
+        $files = array_diff(scandir($dir), array('.','..'));
+        foreach ($files as $file) {
+            (is_dir("$dir/$file")) ? $this->removeDirectoryRecursively("$dir/$file") : unlink("$dir/$file");
+        }
+        return rmdir($dir);
     }
 
     /**

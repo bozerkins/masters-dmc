@@ -9,6 +9,13 @@ use Symfony\Component\Console\Application;
 
 $application = new Application();
 
-// ... register commands
+$application->add(new \DataManagement\Command\ColumnarListPartitionsCommand());
+$application->add(new \DataManagement\Command\ColumnarMergePartitionsCommand());
+$application->add(new \DataManagement\Command\ColumnarTableSizeCommand());
+$application->add(new \DataManagement\Command\ColumnarTableDropCommand());
+$application->add(new \DataManagement\Command\EntityRelationshipTableCreateCommand());
+$application->add(new \DataManagement\Command\EntityRelationshipTableDropCommand());
+$application->add(new \DataManagement\Command\EntityRelationshipTableOptimizeCommand());
+$application->add(new \DataManagement\Command\EntityRelationshipTableSizeCommand());
 
 $application->run();

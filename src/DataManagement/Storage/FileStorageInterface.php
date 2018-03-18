@@ -83,4 +83,15 @@ interface FileStorageInterface
      * @throws \Exception
      */
     public function release();
+
+    /**
+     * @throws \Exception
+     */
+    public function remove();
+
+    /**
+     * @param string $destination
+     * @throws \Exception
+     */
+    public function move(string $destination);
 }
