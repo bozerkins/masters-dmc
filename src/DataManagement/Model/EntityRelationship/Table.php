@@ -8,7 +8,9 @@
 
 namespace DataManagement\Model\EntityRelationship;
 
+use DataManagement\Model\TableHelper;
 use DataManagement\Storage\FileStorage;
+use DataManagement\Storage\FileStorageInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class Table
@@ -31,22 +33,35 @@ class Table
 
     /** @var array with columns id, name, type, size */
     private $columns = [];
-    /** @var FileStorage  */
+    /** @var FileStorageInterface */
     private $storage;
     /** @var int|null  */
     private $reserve = null;
 
     /**
-     * Table constructor.
-     * @param FileStorage $storage
+     * @param string $file
+     * @return Table
+     * @throws \Exception
      */
-    public function __construct(FileStorage $storage)
+    public static function newFromInstructionsFile(string $file)
+    {
+        $instructions = include $file;
+        $table = new self(new FileStorage($instructions['location']));
+        $table->load($instructions['structure']);
+        return $table;
+    }
+
+    /**
+     * Table constructor.
+     * @param FileStorageInterface $storage
+     */
+    public function __construct(FileStorageInterface $storage)
     {
         $this->storage = $storage;
     }
 
     /**
-     * @return FileStorage
+     * @return FileStorageInterface
      */
     public function storage()
     {
@@ -339,9 +354,9 @@ class Table
         $resolver = new OptionsResolver();
         $resolver->setRequired(array('id', 'name', 'type', 'size'));
         $resolver->setAllowedTypes('id', 'int');
-        $resolver->setAllowedTypes('id', 'string');
-        $resolver->setAllowedTypes('id', 'int');
-        $resolver->setAllowedTypes('id', 'int');
+        $resolver->setAllowedTypes('name', 'string');
+        $resolver->setAllowedTypes('type', 'int');
+        $resolver->setAllowedTypes('size', 'int');
         foreach($structure as $item) {
             $resolver->resolve($item);
         }
