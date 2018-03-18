@@ -34,7 +34,7 @@ jobs:
           command: php composer.phar install
       - runL
           name: Permissions for bin commands
-          command: chmod +x bin/dmc && chmod 0777 bin/dmc
+          command: sudo chmod +x bin/dmc && sudo chmod 0777 bin/dmc
       - run:
           name: Run Unit tests
           command: vendor/bin/phpunit
