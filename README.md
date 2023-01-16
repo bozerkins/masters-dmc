@@ -1,6 +1,8 @@
 # Data Management Components
 
-A small library implementing some of the components for data management.
+Sample implementation of data management components for defining and handling tables.
+
+> Note: This is a university project, mode with a purpose of exploring NoSQL options that can be created with PHP language.
 
 [![CircleCI](https://circleci.com/gh/bozerkins/dmc/tree/master.svg?style=shield)](https://circleci.com/gh/bozerkins/dmc/tree/master)
 [![MIT Licence](https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php)
